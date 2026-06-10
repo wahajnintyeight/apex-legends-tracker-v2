@@ -3,10 +3,12 @@
     "name": "Apex Map Tracker",
     "slug": "apex-map-tracker",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "apexmaptracker",
     "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
