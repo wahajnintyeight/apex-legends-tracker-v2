@@ -19,6 +19,8 @@ export const theme = {
     md: 14,
     lg: 20,
     xl: 28,
+    xxl: 34,
+    pill: 999,
   },
   spacing: (n: number) => n * 4,
   font: {

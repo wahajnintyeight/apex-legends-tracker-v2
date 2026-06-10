@@ -14,6 +14,8 @@ A bare **React Native CLI** (0.76, TypeScript) application for tracking live Ape
 - **Local notifications** via Notifee when a subscribed map goes live
 - **Background polling** via `react-native-background-fetch` (incl. Android headless task) with per-window deduplication
 - **Foreground polling** — 60s auto-refresh + pull-to-refresh
+- **Player search** — look up any player by account name + platform (PC/PS4/Xbox) via the `/bridge` endpoint: profile, level progress, BR + Arenas rank, lifetime stats, selected legend, and top legends
+- **Custom UI kit** — a small reusable component library (`components/ui/`) drives a consistent, modern 2026 look with skeleton loaders
 - **Apex dark theme** — #0B0E13 background, #FF4655 / #FFB000 accents
 
 ## Tech stack
@@ -38,15 +40,20 @@ app.json                    # RN app name / displayName
 metro.config.js             # Metro bundler config
 react-native.config.js      # links vector-icons fonts
 navigation/
-  RootTabs.tsx              # bottom tab navigator (Rotation / Alerts)
+  RootTabs.tsx              # bottom tab navigator (Rotation / Player / Alerts)
 screens/
   RotationScreen.tsx        # live rotation feed
+  PlayerScreen.tsx          # player search + stats (rank, lifetime, legends)
   AlertsScreen.tsx          # manage per-map alert subscriptions
 components/
   MapCard.tsx               # map card: artwork, gradient, live badge, timer, bell
   Countdown.tsx             # 1s-interval ticking countdown
+  ui/                       # reusable design-system primitives (DRY)
+    Card, StatTile, ProgressBar, SegmentedControl, SearchField,
+    Avatar, SectionHeader, Skeleton, Pill   (re-exported via index.ts)
 src/
-  api.ts                    # typed map-rotation API client
+  api.ts                    # typed API client (DRY apiGet) — rotation + player stats
+  format.ts                 # number / rank formatting helpers
   storage.ts                # AsyncStorage subscription + dedup helpers
   notifications.ts          # Notifee permissions + display, background-fetch config
   theme.ts                  # design tokens
