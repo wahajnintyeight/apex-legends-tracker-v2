@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../src/theme';
-import { ModeRotation } from '../src/api';
+import React from 'react';
+import {View, Text, StyleSheet, Pressable, Image} from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import {theme} from '../src/theme';
+import {ModeRotation} from '../src/api';
 import Countdown from './Countdown';
 
 type Props = {
@@ -14,18 +14,19 @@ type Props = {
   onToggleAlert: (map: string) => void;
 };
 
-export default function MapCard({ label, rotation, alertOn, onToggleAlert }: Props) {
-  const { current, next } = rotation;
-  if (!current) return null;
+export default function MapCard({label, rotation, alertOn, onToggleAlert}: Props) {
+  const {current, next} = rotation;
+  if (!current) {
+    return null;
+  }
 
   return (
     <View style={styles.card}>
       <View style={styles.imageWrap}>
         <Image
-          source={{ uri: current.asset }}
+          source={{uri: current.asset}}
           style={styles.image}
-          contentFit="cover"
-          transition={300}
+          resizeMode="cover"
         />
         <LinearGradient
           colors={['transparent', 'rgba(11,14,19,0.55)', theme.colors.surface]}
@@ -44,8 +45,7 @@ export default function MapCard({ label, rotation, alertOn, onToggleAlert }: Pro
         <Pressable
           style={[styles.bell, alertOn && styles.bellOn]}
           onPress={() => onToggleAlert(current.map)}
-          hitSlop={10}
-        >
+          hitSlop={10}>
           <Ionicons
             name={alertOn ? 'notifications' : 'notifications-outline'}
             size={20}
@@ -70,13 +70,8 @@ export default function MapCard({ label, rotation, alertOn, onToggleAlert }: Pro
 
         {next ? (
           <View style={styles.nextRow}>
-            <Image
-              source={{ uri: next.asset }}
-              style={styles.nextThumb}
-              contentFit="cover"
-              transition={200}
-            />
-            <View style={{ flex: 1 }}>
+            <Image source={{uri: next.asset}} style={styles.nextThumb} resizeMode="cover" />
+            <View style={{flex: 1}}>
               <Text style={styles.nextLabel}>UP NEXT</Text>
               <Text style={styles.nextMap}>{next.map}</Text>
             </View>
@@ -97,8 +92,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  imageWrap: { height: 180, justifyContent: 'flex-end' },
-  image: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  imageWrap: {height: 180, justifyContent: 'flex-end'},
+  image: {...StyleSheet.absoluteFillObject, width: '100%', height: '100%'},
   badgeRow: {
     position: 'absolute',
     top: 12,
@@ -129,13 +124,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
     gap: 5,
   },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: '#fff',
-  },
-  liveText: { color: '#fff', fontSize: theme.font.tiny, fontWeight: '800', letterSpacing: 1 },
+  liveDot: {width: 7, height: 7, borderRadius: 4, backgroundColor: '#fff'},
+  liveText: {color: '#fff', fontSize: theme.font.tiny, fontWeight: '800', letterSpacing: 1},
   bell: {
     position: 'absolute',
     top: 52,
@@ -149,18 +139,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  bellOn: { backgroundColor: theme.colors.accent, borderColor: theme.colors.accent },
-  titleBlock: { padding: theme.spacing(4) },
+  bellOn: {backgroundColor: theme.colors.accent, borderColor: theme.colors.accent},
+  titleBlock: {padding: theme.spacing(4)},
   eventName: {
     color: theme.colors.accent,
     fontSize: theme.font.small,
     fontWeight: '700',
     marginBottom: 2,
   },
-  mapName: { color: theme.colors.text, fontSize: theme.font.h2, fontWeight: '800' },
-  body: { padding: theme.spacing(4), paddingTop: theme.spacing(3) },
-  timerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  timerLabel: { color: theme.colors.textMuted, fontSize: theme.font.small, flex: 1 },
+  mapName: {color: theme.colors.text, fontSize: theme.font.h2, fontWeight: '800'},
+  body: {padding: theme.spacing(4), paddingTop: theme.spacing(3)},
+  timerRow: {flexDirection: 'row', alignItems: 'center', gap: 6},
+  timerLabel: {color: theme.colors.textMuted, fontSize: theme.font.small, flex: 1},
   timer: {
     color: theme.colors.primary,
     fontSize: theme.font.h3,
@@ -176,12 +166,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
   },
-  nextThumb: { width: 56, height: 40, borderRadius: theme.radius.sm },
+  nextThumb: {width: 56, height: 40, borderRadius: theme.radius.sm},
   nextLabel: {
     color: theme.colors.textDim,
     fontSize: theme.font.tiny,
     fontWeight: '700',
     letterSpacing: 0.8,
   },
-  nextMap: { color: theme.colors.text, fontSize: theme.font.body, fontWeight: '600' },
+  nextMap: {color: theme.colors.text, fontSize: theme.font.body, fontWeight: '600'},
 });

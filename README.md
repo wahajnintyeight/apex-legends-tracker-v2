@@ -1,76 +1,134 @@
 # Apex Map Tracker
 
-A React Native (Expo SDK 51) application for tracking live Apex Legends map rotation data. Supports push notification subscriptions per map, background rotation polling, and real-time countdown timers.
+A bare **React Native CLI** (0.76, TypeScript) application for tracking live Apex Legends map rotation, with per-map local push notifications and background polling.
 
-[![GitHub](https://img.shields.io/badge/Expo-SDK%2051-000?logo=expo)](https://expo.dev) [![license](https://img.shields.io/badge/license-MIT-blue)](/LICENSE)
+> Migrated from Expo to bare React Native — no Expo runtime, no Expo Go. Runs via the React Native CLI on a native build.
+
+[![React Native](https://img.shields.io/badge/React%20Native-0.76.5-61DAFB?logo=react)](https://reactnative.dev) [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript)](https://www.typescriptlang.org)
 
 ## Features
 
-- **Live rotation display** — Battle Royale, Ranked, Mixtape/LTM, and Wildcard modes with map artwork from the API
-- **Real-time countdown** — ticking timer showing time remaining in the current rotation window
-- **Next map preview** — queued map card with thumbnail for each mode
-- **Map alert subscriptions** — per-map toggle (Rotation tab bell icon or Alerts tab) that registers a local notification trigger
-- **Background polling** — registered via `expo-background-fetch` (~15 min OS-minimum interval) with deduplication per rotation window
-- **Foreground polling** — 60-second auto-refresh while the app is open, with pull-to-refresh
-- **Dark theme** — Apex Legends colour palette (#0B0E13 background, #FF4655 accent, #FFB000 gold)
+- **Live rotation** — Battle Royale, Ranked, Mixtape/LTM, and Wildcard with map artwork
+- **Real-time countdown** — ticking timer for the current rotation window + next-map preview
+- **Map alert subscriptions** — per-map toggle persisted in AsyncStorage
+- **Local notifications** via Notifee when a subscribed map goes live
+- **Background polling** via `react-native-background-fetch` (incl. Android headless task) with per-window deduplication
+- **Foreground polling** — 60s auto-refresh + pull-to-refresh
+- **Apex dark theme** — #0B0E13 background, #FF4655 / #FFB000 accents
 
 ## Tech stack
 
-| Layer | Choice |
-|-------|--------|
-| Framework | Expo SDK 51 with expo-router (file-based routing) |
-| Language | TypeScript (strict mode) |
-| State | React hooks + AsyncStorage for persisting subscriptions |
-| Notifications | `expo-notifications` (local scheduling), `expo-background-fetch` + `expo-task-manager` |
-| API | `apexlegendsstatus.com` map rotation v2 endpoint |
-| Theming | Custom design tokens in `src/theme.ts` |
-| Assets | PNG icons generated via Pillow (1024×1024 app icon, 1242×2436 splash) |
-
-## Getting started
-
-```bash
-cd apex-map-tracker
-npm install
-npx expo start          # scan QR with Expo Go, or press i / a for simulator
-```
-
-> Notifications and background fetch require a physical device. They will not fire in the web preview or iOS simulator background mode.
+| Concern | Library |
+|---------|---------|
+| Core | `react-native` 0.76.5, `react` 18.3.1, TypeScript |
+| Navigation | `@react-navigation/native` + `@react-navigation/bottom-tabs` (v7) |
+| Notifications | `@notifee/react-native` |
+| Background tasks | `react-native-background-fetch` |
+| Gradients | `react-native-linear-gradient` |
+| Icons | `react-native-vector-icons` (Ionicons) |
+| Storage | `@react-native-async-storage/async-storage` |
+| Device info | `react-native-device-info` |
 
 ## Project structure
 
 ```
-app/
-  _layout.tsx             # root layout — registers notification permissions + background task
-  (tabs)/_layout.tsx      # bottom tab navigator
-  (tabs)/index.tsx        # rotation feed — fetches API, renders MapCard per mode
-  (tabs)/alerts.tsx       # subscription manager — toggles per-map alert state
+index.js                    # entry — registers app + background-fetch headless task
+App.tsx                     # NavigationContainer, theme, notification bootstrap
+app.json                    # RN app name / displayName
+metro.config.js             # Metro bundler config
+react-native.config.js      # links vector-icons fonts
+navigation/
+  RootTabs.tsx              # bottom tab navigator (Rotation / Alerts)
+screens/
+  RotationScreen.tsx        # live rotation feed
+  AlertsScreen.tsx          # manage per-map alert subscriptions
 components/
-  MapCard.tsx             # map card: artwork, gradient overlay, live badge, timer, bell, next map
-  Countdown.tsx           # <Countdown endTs={unix} /> — 1s-interval ticking timer
+  MapCard.tsx               # map card: artwork, gradient, live badge, timer, bell
+  Countdown.tsx             # 1s-interval ticking countdown
 src/
-  api.ts                  # typed fetch wrapper for GET /maprotation?version=2
-  storage.ts              # AsyncStorage helpers for alert subscriptions and dedup keys
-  notifications.ts        # permission request, checkRotationAndNotify(), background task definition
-  theme.ts                # colour palette, spacing, typography constants
+  api.ts                    # typed map-rotation API client
+  storage.ts                # AsyncStorage subscription + dedup helpers
+  notifications.ts          # Notifee permissions + display, background-fetch config
+  theme.ts                  # design tokens
 ```
+
+## Prerequisites
+
+Set up your environment per the official guide: https://reactnative.dev/docs/set-up-your-environment
+(Node >= 18, JDK 17, Android Studio / Xcode, CocoaPods for iOS).
+
+## Install & run
+
+```bash
+npm install
+
+# iOS only — install native pods
+cd ios && bundle install && bundle exec pod install && cd ..
+
+# Start Metro
+npm start
+
+# In a second terminal:
+npm run android
+# or
+npm run ios
+```
+
+## Native configuration
+
+### Android (`android/app/src/main/AndroidManifest.xml`)
+
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+```
+
+`react-native-background-fetch` and `@notifee/react-native` autolink. Follow the
+background-fetch Android setup notes (adds a `BackgroundFetchHeadlessTask` and a
+boot receiver to the manifest): https://github.com/transistorsoft/react-native-background-fetch
+
+### iOS
+
+In Xcode, enable **Background Modes** capability with:
+- Background fetch
+- Background processing (and remote notifications if you later add push)
+
+Add the BGTaskScheduler identifier per the background-fetch iOS docs, and request
+notification permission (handled at runtime by Notifee `requestPermission()`).
+
+### Vector icons
+
+Fonts are linked via `react-native.config.js`. After install run
+`npx react-native-asset` (or rebuild) so the Ionicons font is bundled. On iOS,
+confirm the font appears under **Fonts provided by application** in `Info.plist`.
 
 ## API configuration
 
-The map rotation data is sourced from [apexlegendsstatus.com](https://apexlegendsstatus.com/). The API key is defined in `src/api.ts`:
+Map rotation data comes from [apexlegendsstatus.com](https://apexlegendsstatus.com/).
+The key lives in `src/api.ts`:
 
 ```ts
 export const API_KEY = '8167c9d4a4e6f814b920515ebf494b71';
 ```
 
-For production deployments, the key should be moved out of the bundle — use EAS secrets (`expo-constants` `extra` config) or proxy requests through a backend service.
+For production, move it out of the bundle — use `react-native-config` (`.env`)
+or proxy requests through a backend service rather than shipping the key.
 
 ## Notification architecture
 
-1. On app launch, `_layout.tsx` calls `registerForNotifications()` (requests OS permission + creates Android channel) and `registerBackgroundFetch()` (registers `apex-map-rotation-check` background task).
-2. `checkRotationAndNotify()` fetches the full rotation, compares each mode's current map against the user's subscribed maps (stored in AsyncStorage), and schedules a local notification if a new match is found.
-3. Deduplication: each combination of `{mode, map, start}` is stored in a notified-keys map (24-hour TTL), ensuring one notification per rotation window.
+1. `App.tsx` calls `initNotifications()` (Notifee permission + Android channel) and
+   `registerBackgroundFetch()` on mount.
+2. `checkRotationAndNotify()` fetches the rotation, compares each mode's current
+   map against subscribed maps in AsyncStorage, and displays a Notifee
+   notification for any newly-live match.
+3. Each `{mode, map, start}` window is recorded (24h TTL) so a given window only
+   notifies once.
+4. While terminated, the Android headless task in `index.js` runs the same check
+   when the OS fires a background-fetch event.
 
 ## Limitations
 
-- Background fetch interval is enforced by the OS and may exceed 15 minutes depending on device power state.
-- For guaranteed near-instant delivery, a server-side watcher using `expo-server-sdk` to send push notifications to registered device tokens would be required.
+- Background-fetch cadence is OS-controlled and may exceed the 15-minute minimum.
+- For guaranteed near-instant delivery, add a server that watches the rotation and
+  sends remote push via FCM/APNs to registered device tokens.

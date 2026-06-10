@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Text, TextStyle } from 'react-native';
+import React, {useEffect, useState} from 'react';
+import {Text, TextStyle, StyleProp} from 'react-native';
 
 function format(secs: number): string {
-  if (secs <= 0) return '00:00:00';
+  if (secs <= 0) {
+    return '00:00:00';
+  }
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   const s = Math.floor(secs % 60);
@@ -17,11 +19,11 @@ export default function Countdown({
   onExpire,
 }: {
   endTs: number;
-  style?: TextStyle | TextStyle[];
+  style?: StyleProp<TextStyle>;
   onExpire?: () => void;
 }) {
   const [remaining, setRemaining] = useState(() =>
-    Math.max(0, endTs - Math.floor(Date.now() / 1000))
+    Math.max(0, endTs - Math.floor(Date.now() / 1000)),
   );
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function Countdown({
       }
     }, 1000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endTs]);
 
   return <Text style={style}>{format(remaining)}</Text>;

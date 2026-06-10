@@ -1,65 +1,53 @@
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
-import * as BackgroundFetch from 'expo-background-fetch';
-import * as TaskManager from 'expo-task-manager';
-import { Platform } from 'react-native';
-import { fetchMapRotation, MODE_LABELS, MODE_ORDER } from './api';
-import { getAlerts, getNotifiedKeys, markNotified } from './storage';
+import notifee, {AndroidImportance, AuthorizationStatus} from '@notifee/react-native';
+import BackgroundFetch from 'react-native-background-fetch';
+import {Platform} from 'react-native';
+import {fetchMapRotation, MODE_LABELS, MODE_ORDER} from './api';
+import {getAlerts, getNotifiedKeys, markNotified} from './storage';
 
-export const BG_TASK = 'apex-map-rotation-check';
+const CHANNEL_ID = 'map-alerts';
 
-// Foreground presentation
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
-export async function registerForNotifications(): Promise<boolean> {
-  if (!Device.isDevice) {
-    // Notifications only work on physical devices
-    return false;
-  }
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let status = existing;
-  if (existing !== 'granted') {
-    const req = await Notifications.requestPermissionsAsync();
-    status = req.status;
-  }
-  if (status !== 'granted') return false;
+// Request OS notification permission and create the Android channel.
+export async function initNotifications(): Promise<boolean> {
+  const settings = await notifee.requestPermission();
+  const granted =
+    settings.authorizationStatus === AuthorizationStatus.AUTHORIZED ||
+    settings.authorizationStatus === AuthorizationStatus.PROVISIONAL;
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('map-alerts', {
+    await notifee.createChannel({
+      id: CHANNEL_ID,
       name: 'Map Alerts',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
+      importance: AndroidImportance.HIGH,
+      vibration: true,
+      lights: true,
       lightColor: '#FF4655',
     });
   }
-  return true;
+  return granted;
 }
 
 async function sendMapAlert(map: string, modeLabel: string, timer?: string) {
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: `🗺️ ${map} is LIVE`,
-      body: `${map} is now in rotation for ${modeLabel}.${
-        timer ? ` ${timer} remaining.` : ''
-      }`,
-      sound: true,
-      data: { map, modeLabel },
+  await notifee.displayNotification({
+    title: `${map} is LIVE`,
+    body: `${map} is now in rotation for ${modeLabel}.${
+      timer ? ` ${timer} remaining.` : ''
+    }`,
+    android: {
+      channelId: CHANNEL_ID,
+      smallIcon: 'ic_launcher',
+      color: '#FF4655',
+      pressAction: {id: 'default'},
     },
-    trigger: null, // immediate
+    ios: {sound: 'default'},
   });
 }
 
-// Core check: compare live rotation against the user's subscribed maps and
-// fire a notification for any newly-active subscribed map+window.
+// Compare live rotation against subscribed maps and notify newly-live windows.
 export async function checkRotationAndNotify(): Promise<number> {
   const alerts = await getAlerts();
-  if (alerts.length === 0) return 0;
+  if (alerts.length === 0) {
+    return 0;
+  }
 
   const rotation = await fetchMapRotation();
   const notified = await getNotifiedKeys();
@@ -67,18 +55,23 @@ export async function checkRotationAndNotify(): Promise<number> {
 
   for (const mode of MODE_ORDER) {
     const slot = (rotation as any)[mode]?.current;
-    if (!slot?.map) continue;
+    if (!slot?.map) {
+      continue;
+    }
 
     const sub = alerts.find(
-      (a) =>
+      a =>
         a.map.toLowerCase() === slot.map.toLowerCase() &&
-        (a.modes.length === 0 || a.modes.includes(mode))
+        (a.modes.length === 0 || a.modes.includes(mode)),
     );
-    if (!sub) continue;
+    if (!sub) {
+      continue;
+    }
 
-    // Unique key per rotation window so we only notify once per window
     const key = `${mode}|${slot.map}|${slot.start}`;
-    if (notified[key]) continue;
+    if (notified[key]) {
+      continue;
+    }
 
     await sendMapAlert(slot.map, MODE_LABELS[mode] || mode, slot.remainingTimer);
     await markNotified(key);
@@ -87,36 +80,31 @@ export async function checkRotationAndNotify(): Promise<number> {
   return fired;
 }
 
-// ---- Background task registration ----
-TaskManager.defineTask(BG_TASK, async () => {
-  try {
-    const fired = await checkRotationAndNotify();
-    return fired > 0
-      ? BackgroundFetch.BackgroundFetchResult.NewData
-      : BackgroundFetch.BackgroundFetchResult.NoData;
-  } catch {
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
-
+// Register periodic background polling. iOS/Android enforce the actual cadence.
 export async function registerBackgroundFetch(): Promise<void> {
   try {
-    const status = await BackgroundFetch.getStatusAsync();
-    if (
-      status === BackgroundFetch.BackgroundFetchStatus.Restricted ||
-      status === BackgroundFetch.BackgroundFetchStatus.Denied
-    ) {
-      return;
-    }
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(BG_TASK);
-    if (!isRegistered) {
-      await BackgroundFetch.registerTaskAsync(BG_TASK, {
-        minimumInterval: 15 * 60, // 15 min (OS minimum on iOS)
+    await BackgroundFetch.configure(
+      {
+        minimumFetchInterval: 15, // minutes (OS minimum)
         stopOnTerminate: false,
         startOnBoot: true,
-      });
-    }
+        enableHeadless: true,
+        requiredNetworkType: BackgroundFetch.NETWORK_TYPE_ANY,
+      },
+      async (taskId: string) => {
+        try {
+          await checkRotationAndNotify();
+        } catch (e) {
+          // ignore network/API errors during background runs
+        }
+        BackgroundFetch.finish(taskId);
+      },
+      async (taskId: string) => {
+        // task timed out — must still call finish
+        BackgroundFetch.finish(taskId);
+      },
+    );
   } catch (e) {
-    // background fetch unsupported (e.g. web) — fall back to foreground polling
+    // background fetch unsupported on this platform/config
   }
 }
